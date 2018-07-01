@@ -3,12 +3,14 @@
 #include<string>
 #include<set>
 #include<ctime>
+#include<random>
+#include<algorithm>
 #define MAX_DIM 500
 using namespace std;
 int current_time = 0;
 int m, n, p;
 int field[MAX_DIM][MAX_DIM];
-
+auto rng = std::default_random_engine {};
 struct Place{
     int x;
     int y;
@@ -93,10 +95,25 @@ bool draw(Piece& piece, Place place, bool place_it, int mark){
 
 void print_field(){
     for(int j = 0; j<m; j++){
+        cout<<"[";
         for(int i = 0; i<n; i++){
-            cout << field[j][i]+1<<" ";
+            cout << field[j][i]+1<<",";
         }
+        cout<<"],";
         cout << endl;
+    }
+}
+
+void print_color_map(){
+    cout <<"{0:0,";
+    for(int i = 0; i<p; i++){
+        cout << i+1 <<":" << pieces[i].color;
+        if(i!=p-1){
+            cout << ",";
+        }
+        else{
+            cout << "}";
+        }
     }
 }
 
@@ -104,8 +121,12 @@ void prune(){
     for(auto &piece_index:free_pieces){
         Piece* piece = &pieces[piece_index];
         for(auto &place : piece->places){
-          if(draw(*piece, place, false, piece_index))
-            place.last_on = current_time;
+            if(place.last_on < current_time-1)
+                continue;
+            if(draw(*piece, place, false, piece_index))
+                place.last_on = current_time;
+            else
+                place.last_on = current_time-1;
         } 
     }
 }
@@ -124,7 +145,6 @@ bool solve(int piece_index){
         if(solve(choose_next_piece()))
             return true;
         draw(*piece, place, true, -1);
-        place.last_on = current_time-1;
     }
     current_time--;
     free_pieces.insert(piece_index);
@@ -151,6 +171,7 @@ int main(){
         pieces.push_back(piece);
         free_pieces.insert(i);
     }
+    p = pieces.size();
     //---set places for the pieces
     for(auto &piece : pieces){
         for(int x = 0; x<n; x++)
@@ -180,4 +201,5 @@ int main(){
     else{
         cout<<"It is impossible."<<endl;
     }
+    print_color_map();
 }
