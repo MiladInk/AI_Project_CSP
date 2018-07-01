@@ -2,12 +2,12 @@
 #include<vector>
 #include<string>
 #include<set>
+#include<ctime>
 #define MAX_DIM 500
 using namespace std;
 int current_time = 0;
 int m, n, p;
 int field[MAX_DIM][MAX_DIM];
-
 
 struct Place{
     int x;
@@ -25,6 +25,7 @@ struct Piece{
 };
 
 vector<Piece>pieces;
+set<int>free_pieces;
 
 
 bool collision(int x, int y, int piece_index){
@@ -34,6 +35,27 @@ bool collision(int x, int y, int piece_index){
     if(field[y][x]!= piece_index && pieces[field[y][x]].color == pieces[piece_index].color)
         return true;
     return false;
+}
+
+int available_places(int piece_index){
+    int n_places = 0;
+    for(auto& place:pieces[piece_index].places)
+        if(place.last_on==current_time)
+            n_places++;
+    return n_places;
+}
+
+int choose_next_piece(){
+    int cpi= *free_pieces.begin();// cpi stands for choosen_piece_index;
+    int cpi_places = available_places(cpi); 
+    for(auto x: free_pieces){
+        int x_places = available_places(x);
+        if(x_places<cpi_places){
+            cpi = x;
+            cpi_places = x_places;
+        }
+    }
+    return cpi;
 }
 
 bool draw_one_tile(int x, int y, int mark, bool place_it){
@@ -78,32 +100,34 @@ void print_field(){
     }
 }
 
-void prune(int piece_index){
-   Piece* piece = &pieces[piece_index];
-    for(auto &place : piece->places){
-        if(draw(*piece, place, false, piece_index))
+void prune(){
+    for(auto &piece_index:free_pieces){
+        Piece* piece = &pieces[piece_index];
+        for(auto &place : piece->places){
+          if(draw(*piece, place, false, piece_index))
             place.last_on = current_time;
-    } 
+        } 
+    }
 }
 
 bool solve(int piece_index){
+    free_pieces.erase(piece_index);
     Piece* piece = &pieces[piece_index];
     for(auto &place : piece->places){
         if(place.last_on<current_time)
             continue;
-        if(!draw(*piece, place, true, piece_index)){
-            cout <<"shit" <<piece_index << endl;
-        }
-        if(piece_index==p-1)
+        draw(*piece, place, true, piece_index);
+        if(free_pieces.empty())
             return true;   
         current_time++;
-        prune(piece_index+1);
-        if(solve(piece_index+1))
+        prune();
+        if(solve(choose_next_piece()))
             return true;
         draw(*piece, place, true, -1);
         place.last_on = current_time-1;
     }
     current_time--;
+    free_pieces.insert(piece_index);
     return false;
 }
 
@@ -123,6 +147,7 @@ int main(){
             piece.width = next_pattern_line.length();
         }
         pieces.push_back(piece);
+        free_pieces.insert(i);
     }
     //---set places for the pieces
     for(auto &piece : pieces){
@@ -138,7 +163,17 @@ int main(){
                         piece.places.push_back(place);
                 }
     }
-    if(solve(0))
+
+    //---solving the piece
+    clock_t begin = clock();
+
+    bool solved = solve(choose_next_piece());
+
+    clock_t end = clock();
+    double passed_time = double(end-begin)/CLOCKS_PER_SEC;
+    cout << passed_time <<" seconds passed.\n";
+
+    if(solved)
         print_field();
     else{
         cout<<"It is impossible."<<endl;
