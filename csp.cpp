@@ -1,12 +1,12 @@
 #include<iostream>
 #include<vector>
 #include<string>
+#include<set>
 #define MAX_DIM 500
 using namespace std;
 int current_time = 0;
 int m, n, p;
 int field[MAX_DIM][MAX_DIM];
-
 
 
 struct Place{
@@ -80,7 +80,7 @@ void print_field(){
 
 void prune(int piece_index){
    Piece* piece = &pieces[piece_index];
-    for(Place &place : piece->places){
+    for(auto &place : piece->places){
         if(draw(*piece, place, false, piece_index))
             place.last_on = current_time;
     } 
@@ -88,25 +88,20 @@ void prune(int piece_index){
 
 bool solve(int piece_index){
     Piece* piece = &pieces[piece_index];
-    for(Place &place : piece->places){
+    for(auto &place : piece->places){
         if(place.last_on<current_time)
             continue;
-        cout << endl;
-        print_field();
         if(!draw(*piece, place, true, piece_index)){
             cout <<"shit" <<piece_index << endl;
-            print_field();
-            cout << endl;
         }
+        if(piece_index==p-1)
+            return true;   
         current_time++;
-        if(piece_index<p-1){
         prune(piece_index+1);
         if(solve(piece_index+1))
             return true;
-        }else{
-            return true;
-        }
         draw(*piece, place, true, -1);
+        place.last_on = current_time-1;
     }
     current_time--;
     return false;
