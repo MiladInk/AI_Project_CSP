@@ -140,6 +140,8 @@ int main(){
     for(int i = 0; i<p; i++){
         Piece piece;
         cin >> piece.height >> piece.color;
+        if(piece.height == -1)
+            break;
         string next_pattern_line;
         for(int j = 0; j<piece.height;j++){
             cin >> next_pattern_line;
