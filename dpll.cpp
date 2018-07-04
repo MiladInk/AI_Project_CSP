@@ -225,14 +225,17 @@ bool find_empty_rule(vector<vector<int>> rules){
 }    
 
 int choose_index(){
-    int max_val = -1;
+    int max_val = 0;
     int key = 0;
-    for (auto & kv : var_rule) {
+    for (auto kv : var_rule) {
         if (kv.second.size() > max_val) {
             max_val = kv.second.size();
             key = kv.first;
+            print(key);
         }
     }
+    if(key==0)
+        cerr <<"shoto too maghzet berine" << endl;
     return key;
 }
 
