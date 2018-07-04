@@ -18,7 +18,6 @@ map<int,unordered_set<int>> var_rule;
 unordered_set<int>active_rules;
 vector<int> deactivated_rules;
 vector<pair<int,int>> removed_variables;
-map<int,int>rule_stat; 
 unordered_set<int>unit_rules;
 map<int,unordered_set<int>> rule_var;
 bool exit_null_rule = false;
@@ -49,7 +48,6 @@ void add_rule(vector<int> indices){
     for(auto& index: indices){
         var_rule[index].insert(rule_number);
         rule_var[rule_number].insert(index);
-        rule_stat[rule_number]++;
     }
 }
 
@@ -118,7 +116,6 @@ void cnf(int index, bool value){
             removed_variables.push_back(make_pair(index2, rule));
         }
         removed_variables.push_back(make_pair(index, rule));
-        rule_stat[rule] = 0;
         rule_var[rule].clear();
         active_rules.erase(rule);
         deactivated_rules.push_back(rule);
@@ -127,12 +124,10 @@ void cnf(int index, bool value){
     for(auto&rule:var_rule[-index]){
         rule_var[rule].erase(-index);
         removed_variables.push_back(make_pair(-index, rule));
-        rule_stat[rule]--;
-        if(rule_stat[rule]==1)
+        if(rule_var[rule].size()==1)
             unit_rules.insert(rule);
-        else if(rule_stat[rule]==0){
+        else if(rule_var[rule].size()==0){
             exit_null_rule = true;
-            unit_rules.erase(rule);
         }
     }
     var_rule[-index].clear();
@@ -155,8 +150,10 @@ bool unit(){
     while(!unit_rules.empty()){
         int unit_rule = *unit_rules.begin();
         unit_rules.erase(unit_rule);
-        cnf(*rule_var[unit_rule].begin(), true);
-        changed = true;
+        if(rule_var[unit_rule]==1){
+            cnf(*rule_var[unit_rule].begin(), true);
+            changed = true;
+        }
     }
     return changed;
 }
@@ -252,7 +249,6 @@ void revert(vector<int>deactivated_rules_local,vector<pair<int,int>> removed_var
     for(auto& vr:removed_variables_local){
         var_rule[vr.first].insert(vr.second);
         rule_var[vr.second].insert(vr.first);
-        rule_stat[vr.second]++;
     }
 }
 
