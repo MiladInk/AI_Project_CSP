@@ -132,6 +132,7 @@ void cnf(int index, bool value){
             unit_rules.insert(rule);
         else if(rule_stat[rule]==0){
             exit_null_rule = true;
+            unit_rules.erase(rule);
         }
     }
     var_rule[-index].clear();
