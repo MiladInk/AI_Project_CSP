@@ -6,12 +6,15 @@
 #include<algorithm>
 #include<vector>
 #include<map>
+#include<unordered_set>
 #define MAX_DIM 500
 #define MAX_PIECE 50
 using namespace std;
 bool var_array[MAX_PIECE][MAX_DIM][MAX_DIM][4];
-int m = 10, n = 15, p = 10, field[MAX_DIM][MAX_DIM];
+int m , n, p, field[MAX_DIM][MAX_DIM];
 vector<vector<int>> rules;
+map<int,unordered_set<int>> var_rule_mp;
+int unitcall, purecall, choosecall, cnfcall;
 
 void print_rule(vector<vector<int>> rules){
     cout <<"rules:";
@@ -72,13 +75,13 @@ void print_human(int index){
 }
 
 void add_rule(vector<int> indices){
-    for(auto& atom : indices){
-        print_human(atom);
-        cout <<" , ";
-    }
-    cout << endl;
+    for(auto& index: indices)
+        mp[index].insert()
     rules.push_back(indices);
 }
+
+
+
 
 
 
@@ -132,6 +135,7 @@ bool collision(int x, int y, int piece_index){
 }
 
 vector<vector<int>> cnf(vector<vector<int>> rules, int index, bool value){
+    cnfcall++;
     if(index<0){
         index = -index;
         value = !value;
@@ -158,6 +162,7 @@ vector<vector<int>> cnf(vector<vector<int>> rules, int index, bool value){
 }
 
 bool pure(vector<vector<int>>& rules){
+    purecall++;
     bool changed = false;
     map<int, bool> mp;
     for(auto &rule: rules){
@@ -175,6 +180,7 @@ bool pure(vector<vector<int>>& rules){
 }
 
 bool unit(vector<vector<int>>& rules){
+    unitcall++;
     bool changed = false;
     map<int, bool> mp;
     for(auto &rule: rules){
@@ -257,6 +263,24 @@ bool find_empty_rule(vector<vector<int>> rules){
     return false;
 }    
 
+int choose_index(vector<vector<int>>& rules){
+    choosecall++;
+    map<int,int>mp;
+    for(auto& rule:rules)
+        for(auto &atom:rule){
+            mp[atom]++;
+        }
+    int key = 0;
+    int value = 0;
+    for(auto& kv: mp){
+        if(kv.second>value){
+            key = kv.first;
+            value = kv.second;
+        }
+    }
+    return key;
+}
+
 bool dpll(vector<vector<int>> rules){
     while(true){
         if(rules.empty())
@@ -267,16 +291,15 @@ bool dpll(vector<vector<int>> rules){
             continue;
         break;
     }
-    if(dpll(cnf(rules, rules[0][0], true)))
+    int index = choose_index(rules);
+    if(dpll(cnf(rules, index, true)))
         return true;
-    return dpll(cnf(rules, rules[0][0], false));
+    return dpll(cnf(rules, index, false));
 }
 
 
 
 int main(){
-    print_hamany(get_index(4, 5, 6, 3));
-    cout <<"shit" << endl;
     cin >> m >> n >> p;
     for(int i = 0; i<n; i++)
         for(int j = 0; j<m; j++)
@@ -328,7 +351,7 @@ int main(){
         //---existential rules
         add_rule(exist_baby);
     }
-    cout << rules.size() << endl;
+    //cout << rules.size() << endl;
     //---do not collide babies
     for(int k = 0; k<p; k++){
         Piece& piece1 = pieces[k];
@@ -336,7 +359,7 @@ int main(){
             for(int y = 0; y<m; y++)
                 for(int d = 0; d<4; d++)
                     for(int kk = 0; kk<k; kk++){
-                        Piece& piece2 = pieces[k];
+                        Piece& piece2 = pieces[kk];
                         for(int xx = 0; xx<n; xx++)
                             for(int yy = 0; yy<m; yy++)
                                 for(int dd = 0; dd<4; dd++){
@@ -357,7 +380,7 @@ int main(){
                                 }
                     }
     }
-    cout << rules.size() << endl;
+    //cout << rules.size() << endl;
     //---solving the piece
     clock_t begin = clock();
 
@@ -372,7 +395,7 @@ int main(){
                 for(int y = 0; y<m; y++)
                     for(int d = 0; d<4; d++){
                         Place place = {x, y, d};
-                        if(get(get_index(k+1, y, x, d)))
+                        if(var_array[k+1][y][x][d])
                             draw(piece1, place, true, k);
                     }
         }
@@ -382,4 +405,5 @@ int main(){
         cout<<"It is impossible."<<endl;
     }
     print_color_map();
+    cout << unitcall << " "<<purecall <<" "<< choosecall <<" "<<cnfcall << endl;
 }
