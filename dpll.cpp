@@ -54,6 +54,10 @@ void add_rule(vector<int> indices){
 }
 
 void set(int index, bool value){
+    if(index<0){
+        index = -index;
+        value = !value;
+    }
     int k = index/ (m*n*4);
     index %= m*n*4;
     int m = index/(n*4);
