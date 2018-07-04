@@ -10,8 +10,7 @@
 #define MAX_PIECE 50
 using namespace std;
 bool var_array[MAX_PIECE][MAX_DIM][MAX_DIM][4];
-bool var_declared[MAX_PIECE][MAX_DIM][MAX_DIM][4];
-int m = 10, n = 10, p = 10, field[MAX_DIM][MAX_DIM];
+int m = 10, n = 15, p = 10, field[MAX_DIM][MAX_DIM];
 vector<vector<int>> rules;
 
 void print_rule(vector<vector<int>> rules){
@@ -28,6 +27,7 @@ void print_rule(vector<vector<int>> rules){
 bool get(int index){
     bool negate = false;
     if(index < 0){
+        cout << "camel camel!" << endl;
         negate = true;
         index = -index;
     }
@@ -37,24 +37,49 @@ bool get(int index){
     index %= n*4;
     int n = index/4;
     int d = (index%4);
-    if(!var_declared[k][m][n][d])
-        return true;
     bool value =  var_array[k][m][n][d];
     if(negate)
         value = !value;
     return value;
 }
 
+void print_hamany(int index){
+    int k = index/(m*n*4);
+    index %= m*n*4;
+    int m = index/(n*4);
+    index %= n*4;
+    int n = index/4;
+    int d = (index%4);
+    cout << "("<<k<<","<<m<<","<<n<<","<<d<<")";
+}
+
+void print_human(int index){
+    bool negate = false;
+    if(index < 0){
+        negate = true;
+        index = -index;
+    }
+    int k = index/(m*n*4);
+    index %= m*n*4;
+    int m = index/(n*4);
+    index %= n*4;
+    int n = index/4;
+    int d = (index%4);
+    if(negate)
+        cout <<"not";
+    cout << "("<<k<<","<<m<<","<<n<<","<<d<<")";
+    
+}
+
 void add_rule(vector<int> indices){
+    for(auto& atom : indices){
+        print_human(atom);
+        cout <<" , ";
+    }
+    cout << endl;
     rules.push_back(indices);
 }
 
-bool sat_rule(int rule_index){
-    bool result = false;
-    for(auto &atom : rules[rule_index])
-        result = result || get(atom);
-    return result;
-}
 
 
 void set(int index, bool value){
@@ -65,19 +90,8 @@ void set(int index, bool value){
     int n = index/4;
     int d = (index%4);
     var_array[k][m][n][d] = value;
-    var_declared[k][m][n][d] = true;
 }
 
-
-void unset(int index, bool value){
-    int k = index/(m*n*4);
-    index %= m*n*4;
-    int m = index/(n*4);
-    index %= n*4;
-    int n = index/4;
-    int d = (index%4);
-    var_declared[k][m][n][d] = false;
-}
 
 int get_index(int k, int i, int j, int d){
     if(k == 0)
@@ -118,6 +132,10 @@ bool collision(int x, int y, int piece_index){
 }
 
 vector<vector<int>> cnf(vector<vector<int>> rules, int index, bool value){
+    if(index<0){
+        index = -index;
+        value = !value;
+    }
     vector<vector<int>> res;
     set(index, value);
     for (auto &rule: rules){
@@ -127,7 +145,8 @@ vector<vector<int>> cnf(vector<vector<int>> rules, int index, bool value){
             if((atom == index && value == true)||(atom == -index && value == false)){
                 add_flag = false;
                 break;
-            }else if((atom == index && value == false)||(atom == -index && value == true)){
+            }
+            if((atom == index && value == false)||(atom == -index && value == true)){
                 continue;
             }
             to_add.push_back(atom);
@@ -138,47 +157,36 @@ vector<vector<int>> cnf(vector<vector<int>> rules, int index, bool value){
     return res;
 }
 
-vector<vector<int>> pure(vector<vector<int>> rules){
-    bool iter = true;
-    while(iter){
-        iter = false;
-        map<int, bool> mp;
-        for(auto &rule: rules){
-            for(auto& atom :rule){
-                mp[atom] = true;
-            }
-        }
-        for(auto &kv: mp){
-            if(kv.first>0 && mp.find(-kv.first) == mp.end()){
-                rules = cnf(rules, kv.first, true);
-                iter = true;
-                //cout << kv.first << endl;
-            }
-            if(kv.first<0 && mp.find(-kv.first) == mp.end()){
-                rules = cnf(rules, -kv.first, false);
-                iter =true;
-                //cout << kv.first << endl;
-            }
+bool pure(vector<vector<int>>& rules){
+    bool changed = false;
+    map<int, bool> mp;
+    for(auto &rule: rules){
+        for(auto& atom :rule){
+            mp[atom] = true;
         }
     }
-    return rules;
+    for(auto &kv: mp){
+        if(mp.find(-kv.first) == mp.end()){
+            rules = cnf(rules, kv.first, true);
+            changed = true;
+        }
+    }
+    return changed;
 }
 
-vector<vector<int>> unit(vector<vector<int>> rules){
-    bool iter = true;
-    while(iter){
-        iter = false;
-        for(auto &rule: rules){
-            if(rule.size()==1){
-                iter = true;
-                if(rule[0]>0)
-                    rules = cnf(rules, rule[0], true);
-                else
-                    rules = cnf(rules, -rule[0], false);
-            }
+bool unit(vector<vector<int>>& rules){
+    bool changed = false;
+    map<int, bool> mp;
+    for(auto &rule: rules){
+        if(rule.size()==1){
+            mp[rule[0]] = true;
         }
     }
-    return rules;
+    for(auto &kv: mp){
+        rules = cnf(rules, kv.first, true);
+        changed = true;
+    }
+    return changed;
 }
 
 bool draw_one_tile(int x, int y, int mark, bool place_it){
@@ -250,12 +258,15 @@ bool find_empty_rule(vector<vector<int>> rules){
 }    
 
 bool dpll(vector<vector<int>> rules){
-    if(rules.empty())
-        return true;
-    if(find_empty_rule(rules))
-        return false;
-    rules = pure(rules);
-    rules = unit(rules);
+    while(true){
+        if(rules.empty())
+            return true;
+        if(find_empty_rule(rules))
+            return false;
+        if(pure(rules) || unit(rules))
+            continue;
+        break;
+    }
     if(dpll(cnf(rules, rules[0][0], true)))
         return true;
     return dpll(cnf(rules, rules[0][0], false));
@@ -264,6 +275,8 @@ bool dpll(vector<vector<int>> rules){
 
 
 int main(){
+    print_hamany(get_index(4, 5, 6, 3));
+    cout <<"shit" << endl;
     cin >> m >> n >> p;
     for(int i = 0; i<n; i++)
         for(int j = 0; j<m; j++)
@@ -296,7 +309,6 @@ int main(){
                     if(!draw(piece, place, false, 0)){
                         vector<int> atoms;
                         atoms.push_back(-index1);
-                        atoms.push_back(-index1);
                         add_rule(atoms);
                     }
                     for(int xx = 0; xx<n; xx++)
@@ -316,6 +328,7 @@ int main(){
         //---existential rules
         add_rule(exist_baby);
     }
+    cout << rules.size() << endl;
     //---do not collide babies
     for(int k = 0; k<p; k++){
         Piece& piece1 = pieces[k];
@@ -331,10 +344,10 @@ int main(){
                                     int index2 = get_index(kk+1, yy, xx, dd);
                                     Place place1 = {x, y, d};
                                     Place place2 = {xx, yy, dd};
-                                    if(!draw(piece1, place1, false, piece1.color))
+                                    if(!draw(piece1, place1, false, k))
                                         continue;
-                                    draw(piece1, place1, true, piece1.color);
-                                    if(!draw(piece2, place2, false, piece2.color)){
+                                    draw(piece1, place1, true, k);
+                                    if(!draw(piece2, place2, false, kk)){
                                         vector<int>atoms;
                                         atoms.push_back(-index1);
                                         atoms.push_back(-index2);
@@ -344,19 +357,27 @@ int main(){
                                 }
                     }
     }
-
-    
+    cout << rules.size() << endl;
     //---solving the piece
     clock_t begin = clock();
 
-    bool solved;
-
+    bool solved = dpll(rules);
     clock_t end = clock();
     double passed_time = double(end-begin)/CLOCKS_PER_SEC;
     cerr << passed_time <<" seconds passed.\n";
-
-    if(solved)
+    if(solved){
+        for(int k = 0; k<p; k++){
+            Piece& piece1 = pieces[k];
+            for(int x = 0; x<n; x++)
+                for(int y = 0; y<m; y++)
+                    for(int d = 0; d<4; d++){
+                        Place place = {x, y, d};
+                        if(get(get_index(k+1, y, x, d)))
+                            draw(piece1, place, true, k);
+                    }
+        }
         print_field();
+    }
     else{
         cout<<"It is impossible."<<endl;
     }
