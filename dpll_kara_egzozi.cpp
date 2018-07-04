@@ -9,19 +9,23 @@
 #include<unordered_set>
 #define MAX_DIM 500
 #define MAX_PIECE 50
-
-#define print(x) cout << x << endl
 using namespace std;
 bool var_array[MAX_PIECE][MAX_DIM][MAX_DIM][4];
 int m , n, p, field[MAX_DIM][MAX_DIM];
-map<int,unordered_set<int>> var_rule;
-unordered_set<int>active_rules;
-vector<int> deactivated_rules;
-vector<pair<int,int>> removed_variables;
-map<int,int>rule_stat; 
-unordered_set<int>unit_rules;
-map<int,unordered_set<int>> rule_var;
-bool exit_null_rule = false;
+vector<vector<int>> rules;
+map<int,unordered_set<int>> var_rule_mp;
+int unitcall, purecall, choosecall, cnfcall;
+
+void print_rule(vector<vector<int>> rules){
+    cout <<"rules:";
+    for(auto &rule: rules){
+        for(auto& atom: rule){
+            cout << atom <<",";
+        }
+        cout << endl;
+    }
+    cout <<"rules ended" << endl;
+}
 
 bool get(int index){
     bool negate = false;
@@ -42,16 +46,44 @@ bool get(int index){
     return value;
 }
 
+void print_hamany(int index){
+    int k = index/(m*n*4);
+    index %= m*n*4;
+    int m = index/(n*4);
+    index %= n*4;
+    int n = index/4;
+    int d = (index%4);
+    cout << "("<<k<<","<<m<<","<<n<<","<<d<<")";
+}
+
+void print_human(int index){
+    bool negate = false;
+    if(index < 0){
+        negate = true;
+        index = -index;
+    }
+    int k = index/(m*n*4);
+    index %= m*n*4;
+    int m = index/(n*4);
+    index %= n*4;
+    int n = index/4;
+    int d = (index%4);
+    if(negate)
+        cout <<"not";
+    cout << "("<<k<<","<<m<<","<<n<<","<<d<<")";
+    
+}
 
 void add_rule(vector<int> indices){
-    int rule_number = active_rules.size();
-    active_rules.insert(rule_number);
-    for(auto& index: indices){
-        var_rule[index].insert(rule_number);
-        rule_var[rule_number].insert(index);
-        rule_stat[rule_number]++;
-    }
+    for(auto& index: indices)
+        mp[index].insert()
+    rules.push_back(indices);
 }
+
+
+
+
+
 
 void set(int index, bool value){
     int k = index/ (m*n*4);
@@ -102,55 +134,62 @@ bool collision(int x, int y, int piece_index){
     return false;
 }
 
-void cnf(int index, bool value){
-    if(value == false)
+vector<vector<int>> cnf(vector<vector<int>> rules, int index, bool value){
+    cnfcall++;
+    if(index<0){
         index = -index;
-    set(index, true);
-    for(auto&rule: var_rule[index]){
-        for(auto&index2: rule_var[rule]){
-            if(index == index2)
+        value = !value;
+    }
+    vector<vector<int>> res;
+    set(index, value);
+    for (auto &rule: rules){
+        bool add_flag = true;
+        vector<int> to_add;
+        for(auto& atom: rule){
+            if((atom == index && value == true)||(atom == -index && value == false)){
+                add_flag = false;
+                break;
+            }
+            if((atom == index && value == false)||(atom == -index && value == true)){
                 continue;
-            var_rule[index2].erase(rule);
-            removed_variables.push_back(make_pair(index2, rule));
+            }
+            to_add.push_back(atom);
         }
-        removed_variables.push_back(make_pair(index, rule));
-        rule_stat[rule] = 0;
-        rule_var[rule].clear();
-        active_rules.erase(rule);
-        deactivated_rules.push_back(rule);
+        if(add_flag)
+            res.push_back(to_add);   
     }
-    var_rule[index].clear();
-    for(auto&rule:var_rule[-index]){
-        rule_var[rule].erase(-index);
-        removed_variables.push_back(make_pair(-index, rule));
-        rule_stat[rule]--;
-        if(rule_stat[rule]==1)
-            unit_rules.insert(rule);
-        else if(rule_stat[rule]==0){
-            exit_null_rule = true;
-        }
-    }
-    var_rule[-index].clear();
+    return res;
 }
 
-bool pure(){
+bool pure(vector<vector<int>>& rules){
+    purecall++;
     bool changed = false;
-    for(auto& kv: var_rule){
-        if(var_rule[-kv.first].empty() && !kv.second.empty()){
-            cnf(kv.first, true);
-            changed =true;
-            break;
+    map<int, bool> mp;
+    for(auto &rule: rules){
+        for(auto& atom :rule){
+            mp[atom] = true;
+        }
+    }
+    for(auto &kv: mp){
+        if(mp.find(-kv.first) == mp.end()){
+            rules = cnf(rules, kv.first, true);
+            changed = true;
         }
     }
     return changed;
 }
 
-bool unit(){
+bool unit(vector<vector<int>>& rules){
+    unitcall++;
     bool changed = false;
-    while(!unit_rules.empty()){
-        int unit_rule = *unit_rules.begin();
-        unit_rules.erase(unit_rule);
-        cnf(*rule_var[unit_rule].begin(), true);
+    map<int, bool> mp;
+    for(auto &rule: rules){
+        if(rule.size()==1){
+            mp[rule[0]] = true;
+        }
+    }
+    for(auto &kv: mp){
+        rules = cnf(rules, kv.first, true);
         changed = true;
     }
     return changed;
@@ -224,83 +263,38 @@ bool find_empty_rule(vector<vector<int>> rules){
     return false;
 }    
 
-int choose_index(){
-    int max_val = -1;
+int choose_index(vector<vector<int>>& rules){
+    choosecall++;
+    map<int,int>mp;
+    for(auto& rule:rules)
+        for(auto &atom:rule){
+            mp[atom]++;
+        }
     int key = 0;
-    for (auto & kv : var_rule) {
-        if (kv.second.size() > max_val) {
-            max_val = kv.second.size();
+    int value = 0;
+    for(auto& kv: mp){
+        if(kv.second>value){
             key = kv.first;
+            value = kv.second;
         }
     }
     return key;
 }
 
-void revert(vector<int>deactivated_rules_local,vector<pair<int,int>> removed_variables_local){
-    cout <<"shit revert" << endl;
-    for(auto& rule:deactivated_rules_local){
-        active_rules.insert(rule);
-    }
-    for(auto& vr:removed_variables_local){
-        var_rule[vr.first].insert(vr.second);
-        rule_var[vr.second].insert(vr.first);
-        rule_stat[vr.second]++;
-    }
-}
-
-bool dpll(){
-    cout <<"shit shit shit" << endl;
-    bool active = false;
-    bool nullrule = false;
+bool dpll(vector<vector<int>> rules){
     while(true){
-        if(active_rules.empty()){
-            active = true;
-            break;
-        }
-        if(exit_null_rule){
-            exit_null_rule = false;
-            nullrule = true;
-            break;
-        }
-        print("kit");
-        if(pure() || unit())
+        if(rules.empty())
+            return true;
+        if(find_empty_rule(rules))
+            return false;
+        if(pure(rules) || unit(rules))
             continue;
         break;
     }
-    vector<int> deactivated_rules_local1 = deactivated_rules;
-    vector<pair<int,int>> removed_variables_local1 = removed_variables;
-    deactivated_rules.clear();
-    removed_variables.clear();
-    cout <<"shit1" << endl;
-    if(active || nullrule){
-        revert(deactivated_rules_local1, removed_variables_local1);
-        if(active) return true;
-        if(nullrule) return false;
-    }
-    int index = choose_index();
-    cnf(index, true);
-    cout <<"shit10" << endl;
-    vector<int> deactivated_rules_local2 = deactivated_rules;
-    vector<pair<int,int>>removed_variables_local2 = removed_variables;
-    deactivated_rules.clear();
-    removed_variables.clear();
-    cout <<"shit3" << endl;
-    if(dpll()){
-        revert(deactivated_rules_local2, removed_variables_local2);
-        revert(deactivated_rules_local1, removed_variables_local1);
+    int index = choose_index(rules);
+    if(dpll(cnf(rules, index, true)))
         return true;
-    }
-    revert(deactivated_rules_local2, removed_variables_local2);
-    cnf(index, false);
-    deactivated_rules_local2 = deactivated_rules;
-    removed_variables_local2 = removed_variables;
-    cout <<"shit4" << endl;
-    deactivated_rules.clear();
-    removed_variables.clear();
-    bool res = dpll();
-    revert(deactivated_rules_local2, removed_variables_local2);
-    revert(deactivated_rules_local1, removed_variables_local1);
-    return res;
+    return dpll(cnf(rules, index, false));
 }
 
 
@@ -389,7 +383,8 @@ int main(){
     //cout << rules.size() << endl;
     //---solving the piece
     clock_t begin = clock();
-    bool solved = dpll();
+
+    bool solved = dpll(rules);
     clock_t end = clock();
     double passed_time = double(end-begin)/CLOCKS_PER_SEC;
     cerr << passed_time <<" seconds passed.\n";
@@ -410,4 +405,5 @@ int main(){
         cout<<"It is impossible."<<endl;
     }
     print_color_map();
+    cout << unitcall << " "<<purecall <<" "<< choosecall <<" "<<cnfcall << endl;
 }
