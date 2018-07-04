@@ -150,7 +150,7 @@ bool unit(){
     while(!unit_rules.empty()){
         int unit_rule = *unit_rules.begin();
         unit_rules.erase(unit_rule);
-        if(rule_var[unit_rule]==1){
+        if(rule_var[unit_rule].size()==1){
             cnf(*rule_var[unit_rule].begin(), true);
             changed = true;
         }
@@ -233,7 +233,6 @@ int choose_index(){
         if (kv.second.size() > max_val) {
             max_val = kv.second.size();
             key = kv.first;
-            print(key);
         }
     }
     if(key==0)
@@ -242,7 +241,6 @@ int choose_index(){
 }
 
 void revert(vector<int>deactivated_rules_local,vector<pair<int,int>> removed_variables_local){
-    cout <<"shit revert" << endl;
     for(auto& rule:deactivated_rules_local){
         active_rules.insert(rule);
     }
@@ -253,7 +251,6 @@ void revert(vector<int>deactivated_rules_local,vector<pair<int,int>> removed_var
 }
 
 bool dpll(){
-    cout <<"shit shit shit" << endl;
     bool active = false;
     bool nullrule = false;
     while(true){
@@ -266,7 +263,6 @@ bool dpll(){
             nullrule = true;
             break;
         }
-        print("kit");
         if(pure() || unit())
             continue;
         break;
@@ -275,7 +271,6 @@ bool dpll(){
     vector<pair<int,int>> removed_variables_local1 = removed_variables;
     deactivated_rules.clear();
     removed_variables.clear();
-    cout <<"shit1" << endl;
     if(active || nullrule){
         revert(deactivated_rules_local1, removed_variables_local1);
         if(active) return true;
@@ -283,12 +278,10 @@ bool dpll(){
     }
     int index = choose_index();
     cnf(index, true);
-    cout <<"shit10" << endl;
     vector<int> deactivated_rules_local2 = deactivated_rules;
     vector<pair<int,int>>removed_variables_local2 = removed_variables;
     deactivated_rules.clear();
     removed_variables.clear();
-    cout <<"shit3" << endl;
     if(dpll()){
         revert(deactivated_rules_local2, removed_variables_local2);
         revert(deactivated_rules_local1, removed_variables_local1);
@@ -298,7 +291,6 @@ bool dpll(){
     cnf(index, false);
     deactivated_rules_local2 = deactivated_rules;
     removed_variables_local2 = removed_variables;
-    cout <<"shit4" << endl;
     deactivated_rules.clear();
     removed_variables.clear();
     bool res = dpll();
