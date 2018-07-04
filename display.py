@@ -1,3 +1,4 @@
+import sys
 from tkinter import Tk, Canvas, Frame, BOTH
 color_map = {}
 colors = ['#FFFFFF',
@@ -141,15 +142,10 @@ def draw_grid(map_arr, shape_type):
 
 def main():
     global color_map
-    color_map = {0:0,1:1,2:2,3:3,4:1,5:3,6:2}
-    map_arr = [
-        [1, 1, 1, 6, 4, 4, ],
-        [2, 2, 1, 6, 4, 4, ],
-        [2, 2, 1, 6, 4, 5, ],
-        [2, 3, 1, 6, 5, 5, ],
-        [3, 3, 1, 6, 6, 6, ],
-    ]
-
+    code = sys.stdin.read()
+    exec(code)
+    map_arr = locals()['maparr']
+    color_map = locals()['color_map']
     draw_grid(map_arr, shape_type='cnt_shape')
 
 

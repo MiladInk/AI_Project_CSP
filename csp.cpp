@@ -94,17 +94,20 @@ bool draw(Piece& piece, Place place, bool place_it, int mark){
 }
 
 void print_field(){
+    cout << "maparr = [";
     for(int j = 0; j<m; j++){
         cout<<"[";
         for(int i = 0; i<n; i++){
             cout << field[j][i]+1<<",";
         }
         cout<<"],";
-        cout << endl;
+        //cout << endl;
     }
+    cout << "]" << endl;
 }
 
 void print_color_map(){
+    cout << "color_map = ";
     cout <<"{0:0,";
     for(int i = 0; i<p; i++){
         cout << i+1 <<":" << pieces[i].color;
@@ -194,7 +197,7 @@ int main(){
 
     clock_t end = clock();
     double passed_time = double(end-begin)/CLOCKS_PER_SEC;
-    cout << passed_time <<" seconds passed.\n";
+    cerr << passed_time <<" seconds passed.\n";
 
     if(solved)
         print_field();
