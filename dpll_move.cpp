@@ -10,7 +10,7 @@
 #define musi unordered_map<int, unordered_set<int>>
 #define MAX_DIM 500
 #define MAX_PIECE 50
-clock_t unitc, cnfc, purec, choosec;
+clock_t unitc, cnfc, purec, choosec, crd;
 int dpllcall =0, dplldepth = 0;
 
 #define print(x) cerr << x 
@@ -127,26 +127,37 @@ bool collision(int x, int y, int piece_index) {
     return false;
 }
 
-void calc_return_depth(int index){
-    return_depth = -1;
-    return;
+int calc_return_depth(int index){
+    int res = -1;
+    // if(dpllcall%500<10)
+    //     cout << "you spend"<< (double)crd/CLOCKS_PER_SEC << "in crd" << endl;
+    clock_t begin = clock();
     for(auto& rule: gvar_rule[index]){
         for(auto var: grule_var[rule]){
-            if(var_rule[var].empty() && var_rule[-var].empty() && decl[var]>return_depth)
-                return_depth = decl[var];
+            if(var_rule[var].empty() && var_rule[-var].empty() && decl[var]>res)
+                res = decl[var];
+                if(res == dplldepth -1)
+                    return res;
         }
     }
     for(auto& rule: gvar_rule[-index]){
         for(auto var: grule_var[rule]){
-            if(var_rule[var].empty() && var_rule[-var].empty() && decl[var]>return_depth)
-                return_depth = decl[var];
+            if(var_rule[var].empty() && var_rule[-var].empty() && decl[var]>res)
+                res = decl[var];
+            if(res == dplldepth -1)
+                    return res;
         }
     }
-     if(return_depth!= -1)
-         cout <<"return depth is" << return_depth << "but "<< dplldepth << endl;
+    crd += clock()-begin;
+    //  if(res!= -1)
+    //      cout <<"return depth is" << res << "but "<< dplldepth << endl;
+    return res;
 }
 
 void cnf(int index, bool value) {
+    clock_t begin = clock();
+    // if((dpllcall%500)==0)
+    //     cout << "time in cnf is " <<(double)cnfc/CLOCKS_PER_SEC << endl;
     decl[index] = dplldepth;
     decl[-index] = dplldepth; 
     if (value == false)
@@ -174,10 +185,10 @@ void cnf(int index, bool value) {
             unit_rules.insert(rule);
         else if (rule_var[rule].size() == 0) {
             exit_null_rule = true;
-            //calc_return_depth(index);
         }
     }
     var_rule[-index].clear();
+    cnfc+= clock()-begin;
 }
 
 bool pure() {
@@ -362,14 +373,14 @@ bool dpll() {
     deactivated_rules.clear();
     removed_variables.clear();
     if(dplldepth<5){
-        cerr<<dplldepth<<" -> ";
+        cerr<<dplldepth<<" -> not";
         print_human(index); cerr << endl;
     }
     if(dpll())
         return true;
     revert(deactivated_rules_local2, removed_variables_local2);
+    return_depth =  min(calc_return_depth(index),return_depth);
     revert(deactivated_rules_local1, removed_variables_local1);
-    calc_return_depth(index);
     dec_depth();
     return false;
 }
@@ -460,6 +471,8 @@ int main() {
     var_rule.max_load_factor(0.01);
     rule_var.max_load_factor(0.01);
     active_rules.max_load_factor(0.01);
+    pure_candidates.max_load_factor(0.01);
+    unit_rules.max_load_factor(0.01);
     pure_candidates.max_load_factor(0.01);
     decl.max_load_factor(0.01);
     //cout << rules.size() << endl;
