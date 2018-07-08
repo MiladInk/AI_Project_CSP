@@ -7,25 +7,38 @@
 #include<vector>
 #include<unordered_map>
 #include<unordered_set>
-#define musi unordered_map<int, unordered_set<int>>
+#include "dpll.h"
+#define miusi unordered_map<int, unordered_set<int>>
+#define usi unordered_set<int>
+#define umii unordered_map<int, int>
+#define pii pair<int,int>
 #define MAX_DIM 500
 #define MAX_PIECE 50
+#define print(x) cerr << x 
+using namespace std;
+//global variables//
+//---performance check---//
 clock_t unitc, cnfc, purec, choosec, crd;
 int dpllcall =0, dplldepth = 0;
 
-#define print(x) cerr << x 
-using namespace std;
-bool var_array[MAX_PIECE][MAX_DIM][MAX_DIM][4];
-int m, n, p, field[MAX_DIM][MAX_DIM], return_depth = -1;
-musi var_rule, rule_var, gvar_rule, grule_var;
-unordered_set<int> active_rules;
-vector<int> deactivated_rules;
-vector<pair<int, int>> removed_variables;
-unordered_set<int> unit_rules;
-unordered_set<int> pure_candidates;
-unordered_map<int,int> decl;
 
+bool var_array[MAX_PIECE][MAX_DIM][MAX_DIM][4];
+int m, n, p;
+int field[MAX_DIM][MAX_DIM];
+int return_depth = -1;
+miusi var_rule;
+miusi rule_var;
+miusi gvar_rule;
+miusi grule_var;
+usi active_rules;
+usi unit_rules;
+usi pure_candidates;
 bool exit_null_rule = false;
+umii decl;
+vector<int> deactivated_rules;
+usi assigned_vars;
+vector<pii> removed_variables;
+vector<Piece> pieces;
 
 bool get(int index) {
     bool negate = false;
@@ -59,7 +72,7 @@ void print_human(int index){
     int n = index/4;
     int d = (index%4);
     if(negate)
-        cout <<"not";
+        cerr <<"not";
     cerr << "("<<k<<","<<m<<","<<n<<","<<d<<")";
     
 }
@@ -71,6 +84,8 @@ void add_rule(vector<int> indices) {
     for (auto &index: indices) {
         var_rule[index].insert(rule_number);
         rule_var[rule_number].insert(index);
+        gvar_rule[index].insert(rule_number);
+        grule_var[rule_number].insert(index);
     }
 }
 
@@ -102,20 +117,6 @@ int get_index(int k, int i, int j, int d) {
     return result;
 }
 
-struct Place {
-    int x;
-    int y;
-    int dir;
-};
-
-struct Piece {
-    int width;
-    int height;
-    int color;
-    string pattern;
-};
-
-vector<Piece> pieces;
 
 
 bool collision(int x, int y, int piece_index) {
@@ -134,7 +135,7 @@ int calc_return_depth(int index){
     clock_t begin = clock();
     for(auto& rule: gvar_rule[index]){
         for(auto var: grule_var[rule]){
-            if(var_rule[var].empty() && var_rule[-var].empty() && decl[var]>res)
+            if(var_rule[var].empty() && var_rule[-var].empty()  && decl[var]>res)
                 res = decl[var];
                 if(res == dplldepth -1)
                     return res;
@@ -144,7 +145,7 @@ int calc_return_depth(int index){
         for(auto var: grule_var[rule]){
             if(var_rule[var].empty() && var_rule[-var].empty() && decl[var]>res)
                 res = decl[var];
-            if(res == dplldepth -1)
+                if(res == dplldepth -1)
                     return res;
         }
     }
@@ -294,7 +295,7 @@ int choose_index() {
     return key;
 }
 
-void revert(vector<int> deactivated_rules_local, vector<pair<int, int>> removed_variables_local) {
+void revert(vector<int> deactivated_rules_local, vector<pii> removed_variables_local) {
     for (auto &rule:deactivated_rules_local) {
         active_rules.insert(rule);
     }
@@ -304,8 +305,6 @@ void revert(vector<int> deactivated_rules_local, vector<pair<int, int>> removed_
     }
 }
 
-
-
 bool goahead(){
     if(return_depth == -1 || dplldepth == return_depth){
         return_depth = -1;
@@ -314,12 +313,16 @@ bool goahead(){
     return false;
 }
 
-void inc_depth(){
+void inc_depth(int index){
     dplldepth++;
+    assigned_vars.insert(index);
 }
-void dec_depth(){
+
+void dec_depth(int index){
     dplldepth--;
+    assigned_vars.erase(index);
 }
+
 
 bool dpll() {
     dpllcall++;
@@ -340,16 +343,19 @@ bool dpll() {
         break;
     }
     vector<int> deactivated_rules_local1 = move(deactivated_rules);
-    vector<pair<int, int>> removed_variables_local1 = move(removed_variables);
+    vector<pii> removed_variables_local1 = move(removed_variables);
     deactivated_rules.clear();
     removed_variables.clear();
     if (active || nullrule) {
         revert(deactivated_rules_local1, removed_variables_local1);
-        if (active) return true;
-        if (nullrule) return false;
+        if (active) 
+            return true;
+        if (nullrule){
+            return false;
+        }
     }
-    inc_depth();
     int index = choose_index();
+    inc_depth(index);
     if(dplldepth<5){
         cerr<<dplldepth<<" -> ";
         print_human(index); cerr << endl;
@@ -364,9 +370,11 @@ bool dpll() {
     revert(deactivated_rules_local2, removed_variables_local2);
     if(!goahead()){
         revert(deactivated_rules_local1, removed_variables_local1);
-        dec_depth();
+        dec_depth(index);
         return false;
     }
+    assigned_vars.erase(index);
+    assigned_vars.insert(-index);
     cnf(index, false);
     deactivated_rules_local2 = move(deactivated_rules);
     removed_variables_local2 = move(removed_variables);
@@ -379,34 +387,13 @@ bool dpll() {
     if(dpll())
         return true;
     revert(deactivated_rules_local2, removed_variables_local2);
-    return_depth =  min(calc_return_depth(index),return_depth);
+    return_depth = calc_return_depth(index);
     revert(deactivated_rules_local1, removed_variables_local1);
-    dec_depth();
+    dec_depth(-index);
     return false;
 }
 
-
-
-int main() {
-    cin >> m >> n >> p;
-    for (int i = 0; i < n; i++)
-        for (int j = 0; j < m; j++)
-            field[j][i] = -1;
-    //--get the pieces
-    for (int i = 0; i < p; i++) {
-        Piece piece;
-        cin >> piece.height >> piece.color;
-        if (piece.height == -1)
-            break;
-        string next_pattern_line;
-        for (int j = 0; j < piece.height; j++) {
-            cin >> next_pattern_line;
-            piece.pattern += next_pattern_line;
-            piece.width = next_pattern_line.length();
-        }
-        pieces.push_back(piece);
-    }
-    p = pieces.size();
+void generate_rules(){
     for (int k = 0; k < p; k++) {
         vector<int> exist_baby;
         Piece &piece = pieces[k];
@@ -439,7 +426,6 @@ int main() {
         //---existential rules
         add_rule(exist_baby);
     }
-    //cout << rules.size() << endl;
     //---do not collide babies
     for (int k = 0; k < p; k++) {
         Piece &piece1 = pieces[k];
@@ -468,16 +454,42 @@ int main() {
                                 }
                     }
     }
-    var_rule.max_load_factor(0.01);
-    rule_var.max_load_factor(0.01);
-    active_rules.max_load_factor(0.01);
-    pure_candidates.max_load_factor(0.01);
-    unit_rules.max_load_factor(0.01);
-    pure_candidates.max_load_factor(0.01);
-    decl.max_load_factor(0.01);
-    //cout << rules.size() << endl;
-    grule_var = rule_var;
-    gvar_rule = var_rule;
+    
+    
+}
+
+void fast_hash_setting(){
+    var_rule.rehash(var_rule.size()*100);
+    rule_var.rehash(rule_var.size()*100);
+    active_rules.rehash(active_rules.size()*100);
+    pure_candidates.rehash(var_rule.size()*100);
+    unit_rules.rehash(rule_var.size()*100);
+    pure_candidates.rehash(var_rule.size()*100);
+    decl.rehash(var_rule.size()*100);
+}
+
+int main() {
+    cin >> m >> n >> p;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            field[j][i] = -1;
+    //--get the pieces
+    for (int i = 0; i < p; i++) {
+        Piece piece;
+        cin >> piece.height >> piece.color;
+        if (piece.height == -1)
+            break;
+        string next_pattern_line;
+        for (int j = 0; j < piece.height; j++) {
+            cin >> next_pattern_line;
+            piece.pattern += next_pattern_line;
+            piece.width = next_pattern_line.length();
+        }
+        pieces.push_back(piece);
+    }
+    p = pieces.size();
+    generate_rules();
+    fast_hash_setting();
     //---solving the piece
     clock_t begin = clock();
     bool solved = dpll();

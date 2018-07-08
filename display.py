@@ -143,6 +143,9 @@ def draw_grid(map_arr, shape_type):
 def main():
     global color_map
     code = sys.stdin.read()
+    if(code.find("It is impossible.") != -1):
+        print("It is impossible.")
+        return
     exec(code)
     map_arr = locals()['maparr']
     color_map = locals()['color_map']
