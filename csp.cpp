@@ -6,6 +6,7 @@
 #include <random>
 #include <algorithm>
 #include <list>
+#include "csp.h"
 #define MAX_DIM 500
 #define pii pair<int, int>
 #define pb push_back
@@ -17,23 +18,6 @@ int current_time = 0;
 int m, n, p;
 int field[MAX_DIM][MAX_DIM];
 int exp_field[MAX_DIM][MAX_DIM];
-struct Place
-{
-    int x;
-    int y;
-    int dir;
-    int last_on;
-};
-
-struct Piece
-{
-    int width;
-    int height;
-    int color;
-    string pattern;
-    vector<Place> places;
-};
-
 vector<Piece> pieces;
 set<int> free_pieces;
 
@@ -102,7 +86,7 @@ int available_places(int piece_index)
 {
     int n_places = 0;
     for (auto &place : pieces[piece_index].places)
-        if (place.last_on == current_time)
+        if (place.last_on >= current_time)
             n_places++;
     return n_places;
 }
@@ -196,80 +180,105 @@ void print_color_map()
     }
 }
 
-bool is_2c(int p1_index, Place &place1, int p2_index, Place &place2)
+bool is_2c(int piece1_index, Place &place1, int piece2_index, Place &place2)
 {
-    if (!draw_exp(pieces[p1_index], place1, true, p1_index))
-        return false;
-    bool res = draw_exp(pieces[p2_index], place2, false, p2_index);
-    draw_exp(pieces[p1_index], place1, false, p1_index);
+    draw_exp(pieces[piece1_index], place1, true, piece1_index);
+    bool res = draw_exp(pieces[piece2_index], place2, false, piece2_index);
+    draw_exp(pieces[piece1_index], place1, true, -1);
     return res;
 }
 
 void reduce_arc(pii arc, list<pii> &arcs)
 {
+    //cerr << "reduce arc is: " << arc.fi << "," << arc.se << endl;
     Piece *phot = &pieces[arc.fi];  //this piece is hot, it is going to get rid of unconsistent places
     Piece *pcold = &pieces[arc.se]; //this piece is cold, places are static during this func
     bool changed = false;
     for (auto &hotplace : phot->places)
     {
-        if (hotplace.last_on < current_time - 1)
+        bool found = false;
+        if (hotplace.last_on != current_time)
             continue;
         for (auto &coldplace : pcold->places)
         {
+            if (coldplace.last_on != current_time)
+                continue;
             if (is_2c(arc.fi, hotplace, arc.se, coldplace))
-                hotplace.last_on = current_time;
-            else
             {
-                hotplace.last_on = current_time - 1;
-                changed = true;
+                found = true;
+                break;
             }
+        }
+        if (!found)
+        {
+            changed = true;
+            hotplace.last_on = current_time - 1;
         }
     }
     if (changed)
         for (auto &piece_index : free_pieces)
         {
-            if (piece_index == arc.se)
+            if (piece_index == arc.se || piece_index == arc.fi)
                 continue;
-            pii arc = mp(piece_index, arc.fi);
-            arcs.pb(arc);
+            pii tmp_arc = mp(piece_index, arc.fi);
+            arcs.pb(tmp_arc);
         }
 }
-
-void ac3(int set_piece)
+/*set_piece is the piece which is recently set, so 
+this is the initial set of inconsistencies in the graph
+this means that it will clear some pieces from the domain
+of the other pieces(in this code it is equivalent of their time being 
+less than current_time) which will cause them inconsistency*/
+bool ac3(int set_piece)
 {
+    //get places of free pieces the chance to exist.
+    for (auto &free_piece : free_pieces)
+    {
+        for (auto &place : pieces[free_piece].places)
+        {
+            if (place.last_on >= current_time - 1)
+                place.last_on = current_time;
+        }
+    }
+    //set initial arcs
     list<pii> arcs;
     for (auto &piece_index : free_pieces)
     {
         pii arc = mp(piece_index, set_piece);
         arcs.pb(arc);
     }
+    //make arcs consistent
     while (!arcs.empty())
     {
-        pii arc = arcs.back();
-        arcs.pop_back();
+        pii arc = arcs.front();
+        arcs.pop_front();
         reduce_arc(arc, arcs);
     }
 }
 
 bool solve(int piece_index)
 {
+    //cerr << "solve: " << piece_index << "time is" << current_time << endl;
     free_pieces.erase(piece_index);
     Piece *piece = &pieces[piece_index];
     for (auto &place : piece->places)
     {
-        if (place.last_on < current_time)
+        if (place.last_on < current_time) //this place is not availabe in crrent state
             continue;
         draw(*piece, place, true, piece_index);
         if (free_pieces.empty())
             return true;
         current_time++;
+        place.last_on = current_time;
         ac3(piece_index);
         if (solve(choose_next_piece()))
             return true;
         draw(*piece, place, true, -1);
+        place.last_on = current_time;
     }
     current_time--;
     free_pieces.insert(piece_index);
+    //cerr << "return from" << piece_index << endl;
     return false;
 }
 
